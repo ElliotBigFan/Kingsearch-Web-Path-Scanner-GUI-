@@ -28,7 +28,7 @@ from filters import build_filter_config, should_show
 from output import print_result, save_report
 
 
-# ====================== PHẦN SCAN CHUNG ======================
+# ====================== PHẦN SCAN CHUNG (cho CLI) ======================
 
 def scan_sync(
     base_url: str,
@@ -38,12 +38,7 @@ def scan_sync(
     on_result,
 ) -> List[Dict]:
     """
-    Hàm scan đồng bộ, dùng chung cho CLI.
-    - base_url: URL target
-    - paths: danh sách path từ wordlist
-    - http_client: HttpClient
-    - cfg: FilterConfig
-    - on_result: callback mỗi khi có kết quả (in ra,...)
+    Hàm scan đồng bộ, dùng cho CLI.
     """
     results: List[Dict] = []
     base = base_url.rstrip("/") + "/"
@@ -112,9 +107,9 @@ def run_cli() -> bool:
 
     args = parser.parse_args()
 
-    # Nếu không có -u => chuyển sang GUI
+    # Nếu không có -u => không chạy CLI, trả về False để mở GUI
     if not args.u:
-        return False  # báo là chưa chạy CLI
+        return False
 
     # Chạy CLI
     print(f"[+] Target URL: {args.u}")
@@ -174,6 +169,10 @@ class WebPathScanApp:
         self.result_queue: "queue.Queue[Dict]" = queue.Queue()
         self.is_scanning = False
 
+        # progress
+        self.total_paths = 0
+        self.done_paths = 0
+
         self._build_ui()
         self._setup_chart()
 
@@ -189,6 +188,9 @@ class WebPathScanApp:
         # Khung cấu hình
         config_frame = ttk.LabelFrame(main_frame, text="Cấu hình")
         config_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        # Progress string
+        self.progress_var = tk.StringVar(value="Progress: [0/0]")
 
         # URL
         ttk.Label(config_frame, text="URL:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
@@ -261,6 +263,11 @@ class WebPathScanApp:
         self.save_button = ttk.Button(config_frame, text="Lưu báo cáo", command=self.save_report_gui)
         self.save_button.grid(row=1, column=4, padx=10, pady=2, sticky=tk.E)
 
+        # Progress Label
+        ttk.Label(config_frame, textvariable=self.progress_var).grid(
+            row=4, column=0, columnspan=5, sticky=tk.W, padx=5, pady=2
+        )
+
         # Khung dưới chia đôi: trái (kết quả), phải (biểu đồ)
         bottom_frame = ttk.Frame(main_frame)
         bottom_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -313,6 +320,9 @@ class WebPathScanApp:
         if filename:
             self.wordlist_var.set(filename)
 
+    def _update_progress_label(self):
+        self.progress_var.set(f"Progress: [{self.done_paths}/{self.total_paths}]")
+
     def start_scan(self):
         if self.is_scanning:
             return  # đang scan thì bỏ
@@ -353,13 +363,20 @@ class WebPathScanApp:
 
         base = url.rstrip("/") + "/"
 
+        # thiết lập progress
+        self.total_paths = len(paths)
+        self.done_paths = 0
+        self._update_progress_label()
+
         self.is_scanning = True
         self.start_button.config(state=tk.DISABLED)
 
         def worker():
-            for path in paths:
+            for idx, path in enumerate(paths, start=1):
                 if not self.is_scanning:
                     break
+
+                self.done_paths = idx  # cập nhật số đã xử lý
 
                 full_url = urljoin(base, path.lstrip("/"))
                 res = client.get(full_url)
@@ -414,12 +431,12 @@ class WebPathScanApp:
         except queue.Empty:
             pass
 
-        # nếu vẫn đang scan thì tiếp tục poll
-        if self.is_scanning:
-            self.root.after(50, self._process_results_from_queue)
-        else:
-            # vẫn cần poll để lỡ có scan mới
-            self.root.after(200, self._process_results_from_queue)
+        # cập nhật progress mỗi lần tick
+        self._update_progress_label()
+
+        # nếu vẫn đang scan thì poll nhanh hơn
+        delay = 50 if self.is_scanning else 200
+        self.root.after(delay, self._process_results_from_queue)
 
     def _update_chart(self):
         self.ax.clear()
