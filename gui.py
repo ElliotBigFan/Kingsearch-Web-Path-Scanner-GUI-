@@ -60,7 +60,7 @@ def scan_sync(
 
 def run_cli() -> bool:
     parser = argparse.ArgumentParser(
-        description="Simple Web Path Scanner (CLI + GUI)"
+        description="Kingsearch - Web Path Scanner"
     )
 
     # HTTP OPTIONS
