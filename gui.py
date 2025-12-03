@@ -159,7 +159,7 @@ def run_cli() -> bool:
 class WebPathScanApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("WebPathScan - Web Path Scanner")
+        self.root.title("Kingsearch - Web Path Scanner")
         self.root.geometry("1100x650")
 
         self.results: List[Dict] = []
