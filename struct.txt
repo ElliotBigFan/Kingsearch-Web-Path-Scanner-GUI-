@@ -1,0 +1,11 @@
+webpathscan/
+├─ gui.py          
+├─ config.py
+├─ dictionary.py
+├─ http_client.py
+├─ filters.py
+├─ output.py
+├─ wordlists/
+│   └─ common.txt
+└─ reports/
+    └─ (tự sinh file kết quả)

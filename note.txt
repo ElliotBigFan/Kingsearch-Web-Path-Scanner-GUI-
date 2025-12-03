@@ -1,0 +1,2 @@
+# You don't need care this
+.\.venv\Scripts\activate 
